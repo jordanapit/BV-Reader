@@ -1,0 +1,36 @@
+{
+  "name": "bv-reader",
+  "version": "1.0.0",
+  "description": "BV Reader - PDF Reader & Dual-Monitor Slide Show",
+  "author": "BellaVoz",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "id.bellavoz.bvreader",
+    "productName": "BV Reader",
+    "win": {
+      "icon": "app-icon.ico",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "LICENSE.txt",
+      "include": "installer.nsh",
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "pdfjs-dist": "3.11.174"
+  }
+}
