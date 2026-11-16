@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BV Reader - Slide Show</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #000000;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      cursor: none;
+      position: relative;
+    }
+    .slide-layer {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+    }
+    .slide-layer.dissolve-anim {
+      transition: opacity 0.42s ease-in-out;
+    }
+    canvas {
+      display: block;
+    }
+    body.enter {
+      animation: win-enter 0.4s cubic-bezier(0.1, 0.9, 0.2, 1) both;
+    }
+    @keyframes win-enter {
+      from { opacity: 0; transform: translateX(80px); }
+      to { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="layer-0" class="slide-layer" style="opacity: 1; z-index: 2;">
+    <canvas id="canvas-0"></canvas>
+  </div>
+  <div id="layer-1" class="slide-layer" style="opacity: 0; z-index: 1;">
+    <canvas id="canvas-1"></canvas>
+  </div>
+
+  <script src="./node_modules/pdfjs-dist/build/pdf.js"></script>
+  <script>
+    const { ipcRenderer } = require('electron');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './node_modules/pdfjs-dist/build/pdf.worker.js';
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let transitionMode = 'cut';
+    let activeIdx = 0;
+    let transitionTimer = null;
+
+    // Menyimpan hasil render slide di memori agar pindah slide 0ms (tanpa jeda render)
+    const pageCache = new Map();
+
+    const layers = [
+      { div: document.getElementById('layer-0'), canvas: document.getElementById('canvas-0') },
+      { div: document.getElementById('layer-1'), canvas: document.getElementById('canvas-1') }
+    ];
+
+    // 1. Preload PDF saat file dibuka di jendela utama
+    ipcRenderer.on('preload-document', async (e, { pdfSource, transition }) => {
+      transitionMode = transition || 'cut';
+      pageCache.clear();
+      const loadingTask = pdfjsLib.getDocument(pdfSource);
+      pdfDoc = await loadingTask.promise;
+      // Pre-render halaman pertama di latar belakang
+      getOrRenderBitmap(1);
+      if (pdfDoc.numPages >= 2) getOrRenderBitmap(2);
+    });
+
+    ipcRenderer.on('update-transition', (e, transition) => {
+      transitionMode = transition || 'cut';
+    });
+
+    // 2. Tampilkan langsung saat tombol F5 / Slide Show ditekan
+    ipcRenderer.on('show-presentation', async (e, { page, transition }) => {
+      currentPage = page || 1;
+      transitionMode = transition || 'cut';
+      pageCache.clear(); // Bersihkan cache karena ukuran layar fullscreen baru saja diterapkan
+      resetLayers();
+      await getOrRenderBitmap(currentPage); // siapkan gambar dulu, baru animasi masuk
+      await displaySlide(currentPage, false, transitionMode === 'dissolve');
+    });
+
+    // Dipanggil saat slide show ditutup: kosongkan layar agar tidak ada sisa slide lama
+    ipcRenderer.on('hide-presentation', () => {
+      resetLayers();
+      document.body.classList.remove('enter');
+    });
+
+    // 3. Pindah halaman secara instan dengan Cut atau Dissolve
+    ipcRenderer.on('render-page', async (e, { pageNum, transition }) => {
+      if (transition) transitionMode = transition;
+      currentPage = pageNum;
+      await displaySlide(currentPage, true);
+    });
+
+    // Mengembalikan kedua lapisan ke keadaan awal (hitam) setiap slide show dibuka,
+    // supaya efek dissolve selalu berjalan normal di pembukaan kedua, ketiga, dst.
+    function resetLayers() {
+      clearTimeout(transitionTimer);
+      activeIdx = 0;
+      layers.forEach((l, i) => {
+        l.div.classList.remove('dissolve-anim');
+        l.div.style.opacity = '0';
+        l.div.style.zIndex = i === 0 ? '2' : '1';
+      });
+      void document.body.offsetWidth;
+    }
+
+    // Menyelesaikan transisi yang sedang berjalan: lapisan aktif tampil penuh, lapisan lain disembunyikan
+    function finishTransition() {
+      clearTimeout(transitionTimer);
+      layers.forEach((l, i) => {
+        l.div.classList.remove('dissolve-anim');
+        l.div.style.opacity = i === activeIdx ? '1' : '0';
+        l.div.style.zIndex = i === activeIdx ? '2' : '1';
+      });
+    }
+
+    async function getOrRenderBitmap(num) {
+      if (!pdfDoc || num < 1 || num > pdfDoc.numPages) return null;
+      const w = window.innerWidth || 1920;
+      const h = window.innerHeight || 1080;
+      const cacheKey = `${num}_${w}x${h}`;
+
+      if (pageCache.has(cacheKey)) {
+        return pageCache.get(cacheKey);
+      }
+
+      const renderPromise = (async () => {
+        const page = await pdfDoc.getPage(num);
+        const unscaled = page.getViewport({ scale: 1 });
+        const cssScale = Math.min(w / unscaled.width, h / unscaled.height);
+        const viewport = page.getViewport({ scale: cssScale });
+
+        const outputScale = Math.max(window.devicePixelRatio || 1, 2.0);
+        const pixelWidth = Math.floor(viewport.width * outputScale);
+        const pixelHeight = Math.floor(viewport.height * outputScale);
+        const cssWidth = Math.floor(viewport.width);
+        const cssHeight = Math.floor(viewport.height);
+
+        const offscreen = document.createElement('canvas');
+        offscreen.width = pixelWidth;
+        offscreen.height = pixelHeight;
+        const offCtx = offscreen.getContext('2d', { alpha: false });
+        offCtx.imageSmoothingEnabled = true;
+        offCtx.imageSmoothingQuality = 'high';
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, pixelWidth, pixelHeight);
+
+        const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+        await page.render({
+          canvasContext: offCtx,
+          transform: transform,
+          viewport: viewport
+        }).promise;
+
+        return { offscreen, pixelWidth, pixelHeight, cssWidth, cssHeight };
+      })();
+
+      pageCache.set(cacheKey, renderPromise);
+
+      // Batasi ukuran cache maksimal 6 halaman terdekat agar hemat RAM
+      if (pageCache.size > 6) {
+        const firstKey = pageCache.keys().next().value;
+        pageCache.delete(firstKey);
+      }
+
+      return renderPromise;
+    }
+
+    async function displaySlide(num, useTransition = true, fadeIn = false) {
+      if (!pdfDoc) return;
+      const rendered = await getOrRenderBitmap(num);
+      if (!rendered || num !== currentPage) return;
+
+      const nextIdx = useTransition ? (1 - activeIdx) : activeIdx;
+      const targetLayer = layers[nextIdx];
+      const prevLayer = layers[activeIdx];
+
+      const c = targetLayer.canvas;
+      c.width = rendered.pixelWidth;
+      c.height = rendered.pixelHeight;
+      c.style.width = `${rendered.cssWidth}px`;
+      c.style.height = `${rendered.cssHeight}px`;
+
+      const ctx = c.getContext('2d', { alpha: false });
+      ctx.drawImage(rendered.offscreen, 0, 0);
+
+      if (!useTransition) {
+        layers.forEach(l => l.div.classList.remove('dissolve-anim'));
+        targetLayer.div.style.zIndex = '2';
+        targetLayer.div.style.opacity = '0';
+        if (fadeIn) {
+          void targetLayer.div.offsetWidth; // Paksa browser membaca opacity: 0 (layar hitam) dulu
+          targetLayer.div.classList.add('dissolve-anim');
+        }
+        targetLayer.div.style.opacity = '1';
+      } else {
+        const isDissolve = transitionMode === 'dissolve';
+        finishTransition(); // selesaikan dulu transisi sebelumnya (jika masih berjalan)
+
+        // Slide lama TETAP tampil penuh di bawah. Hanya slide baru yang memudar masuk
+        // di atasnya, sehingga latar hitam tidak pernah "bocor" di tengah transisi.
+        prevLayer.div.style.zIndex = '1';
+        prevLayer.div.style.opacity = '1';
+        targetLayer.div.style.zIndex = '2';
+        targetLayer.div.style.opacity = '0';
+        void targetLayer.div.offsetWidth;
+        targetLayer.div.classList.toggle('dissolve-anim', isDissolve);
+        targetLayer.div.style.opacity = '1';
+        activeIdx = nextIdx;
+
+        if (isDissolve) {
+          // Setelah fade selesai, barulah slide lama disembunyikan
+          transitionTimer = setTimeout(finishTransition, 460);
+        } else {
+          finishTransition();
+        }
+      }
+
+      // Pre-render slide berikutnya dan sebelumnya di latar belakang
+      if (num + 1 <= pdfDoc.numPages) getOrRenderBitmap(num + 1);
+      if (num - 1 >= 1) getOrRenderBitmap(num - 1);
+    }
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        pageCache.clear();
+        displaySlide(currentPage, false);
+      }, 60);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        ipcRenderer.send('stop-slideshow');
+      }
+    });
+  </script>
+</body>
+</html>

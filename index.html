@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BV Reader</title>
+  <link rel="stylesheet" href="./node_modules/pdfjs-dist/web/pdf_viewer.css">
+  <style>
+    :root {
+      color-scheme: light dark;
+
+      /* ===== TEMA LIGHT ===== */
+      --winui-card-bg: rgba(255, 255, 255, 0.70);
+      --winui-subtle-surface: rgba(255, 255, 255, 0.55);
+      --winui-control-bg: rgba(255, 255, 255, 0.70);
+      --winui-control-hover: rgba(249, 249, 249, 0.85);
+      --winui-control-pressed: rgba(249, 249, 249, 0.50);
+      --winui-subtle-hover: rgba(0, 0, 0, 0.045);
+      --winui-subtle-pressed: rgba(0, 0, 0, 0.025);
+      --winui-control-active: rgba(0, 0, 0, 0.03);
+      --winui-border: rgba(0, 0, 0, 0.08);
+      --winui-border-strong: rgba(0, 0, 0, 0.16);
+      --winui-divider: rgba(0, 0, 0, 0.12);
+      --winui-text-primary: rgba(0, 0, 0, 0.894);
+      --winui-text-secondary: rgba(0, 0, 0, 0.606);
+      --winui-dialog-bg: rgba(251, 251, 251, 0.96);
+      --winui-flyout-bg: rgba(252, 252, 252, 0.94);
+      --winui-input-focus-bg: #ffffff;
+      --winui-scroll-thumb: rgba(0, 0, 0, 0.30);
+      --winui-scroll-thumb-hover: rgba(0, 0, 0, 0.45);
+      --winui-accent: #005fb8;
+      --winui-accent-hover: #1a6dbf;
+      --winui-accent-pressed: #3a80c6;
+      --winui-accent-light: #005a9e;
+      --winui-accent-soft: rgba(0, 120, 212, 0.16);
+      --winui-on-accent: #ffffff;
+      --winui-danger: #c42b1c;
+      --winui-danger-hover: #d13426;
+      --winui-danger-pressed: #d9473b;
+    }
+
+    /* ===== TEMA DARK ===== */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --winui-card-bg: rgba(255, 255, 255, 0.05);
+        --winui-subtle-surface: rgba(255, 255, 255, 0.04);
+        --winui-control-bg: rgba(255, 255, 255, 0.06);
+        --winui-control-hover: rgba(255, 255, 255, 0.084);
+        --winui-control-pressed: rgba(255, 255, 255, 0.033);
+        --winui-subtle-hover: rgba(255, 255, 255, 0.06);
+        --winui-subtle-pressed: rgba(255, 255, 255, 0.04);
+        --winui-control-active: rgba(255, 255, 255, 0.03);
+        --winui-border: rgba(255, 255, 255, 0.08);
+        --winui-border-strong: rgba(255, 255, 255, 0.14);
+        --winui-divider: rgba(255, 255, 255, 0.12);
+        --winui-text-primary: #ffffff;
+        --winui-text-secondary: rgba(255, 255, 255, 0.786);
+        --winui-dialog-bg: rgba(44, 44, 44, 0.96);
+        --winui-flyout-bg: rgba(44, 44, 44, 0.94);
+        --winui-input-focus-bg: rgba(30, 30, 30, 0.70);
+        --winui-scroll-thumb: rgba(255, 255, 255, 0.18);
+        --winui-scroll-thumb-hover: rgba(255, 255, 255, 0.32);
+        --winui-accent: #60cdff;
+        --winui-accent-hover: #55b8e6;
+        --winui-accent-pressed: #4ca4cc;
+        --winui-accent-light: #60cdff;
+        --winui-accent-soft: rgba(0, 120, 212, 0.28);
+        --winui-on-accent: #000000;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+      /* Transparan agar Mica dari Windows 11 tembus */
+      background-color: transparent;
+      color: var(--winui-text-primary);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Custom WinUI 3 Titlebar (Menyatu dengan Mica) */
+    #titlebar {
+      height: 38px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      padding-left: 16px;
+      padding-right: 145px; /* Ruang untuk native window controls di kanan atas */
+      -webkit-app-region: drag;
+      background: transparent;
+      flex-shrink: 0;
+    }
+    .titlebar-text {
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 12.5px;
+      color: var(--winui-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.1px;
+    }
+    #titlebar-brand {
+      font-family: 'Segoe UI', sans-serif;
+      font-weight: 700; /* Segoe UI Bold */
+    }
+    #titlebar-filename {
+      font-family: 'Segoe UI', sans-serif;
+      font-weight: 400; /* Segoe UI Regular */
+      color: var(--winui-text-primary);
+    }
+
+    /* Drag & Drop Overlay (Fluent Style) */
+    #drop-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: color-mix(in srgb, var(--winui-accent) 28%, transparent);
+      backdrop-filter: blur(12px);
+      color: var(--winui-text-primary);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      border: 2px dashed var(--winui-accent-light);
+      margin: 44px 16px 16px 16px;
+      border-radius: 10px;
+      pointer-events: none;
+    }
+
+    /* ===== Ikon Segoe Fluent (bawaan Windows 11) ===== */
+    .icon {
+      font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets';
+      font-style: normal;
+      font-weight: 400;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    /* ===== WinUI 3 Command Bar / Toolbar ===== */
+    #toolbar {
+      margin: 0 12px 8px 12px;
+      padding: 6px 10px;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      background-color: var(--winui-card-bg);
+      border: 1px solid var(--winui-border);
+      border-radius: 8px;
+    }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .toolbar-group.push-right {
+      margin-left: auto;
+    }
+    .toolbar-sep {
+      width: 1px;
+      height: 28px;
+      margin: 0 8px;
+      background: var(--winui-divider);
+      flex-shrink: 0;
+    }
+    .toolbar-label {
+      font-size: 12.5px;
+      color: var(--winui-text-secondary);
+      margin: 0 4px;
+    }
+
+    /* ===== Tombol standar WinUI 3 ===== */
+    button {
+      font-family: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+      font-size: 13px;
+      min-height: 32px;
+      padding: 5px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--winui-text-primary);
+      background-color: var(--winui-control-bg);
+      border: 1px solid var(--winui-border);
+      border-bottom-color: var(--winui-border-strong);
+      border-radius: 4px;
+      cursor: default;
+      outline: none;
+      transition: background-color 0.08s ease;
+    }
+    button:hover {
+      background-color: var(--winui-control-hover);
+    }
+    button:active {
+      background-color: var(--winui-control-pressed);
+      color: var(--winui-text-secondary);
+    }
+    button:focus-visible {
+      outline: 2px solid var(--winui-text-primary);
+      outline-offset: 1px;
+    }
+
+    /* Tombol aksen (mengikuti Accent Color Windows) */
+    button.primary {
+      background-color: var(--winui-accent);
+      color: var(--winui-on-accent);
+      border-color: transparent;
+    }
+    button.primary:hover { background-color: var(--winui-accent-hover); }
+    button.primary:active {
+      background-color: var(--winui-accent-pressed);
+      color: var(--winui-on-accent);
+    }
+
+    /* Tombol merah (End Slide Show) */
+    button.danger {
+      background-color: var(--winui-danger);
+      color: #ffffff;
+      border-color: transparent;
+    }
+    button.danger:hover { background-color: var(--winui-danger-hover); }
+    button.danger:active {
+      background-color: var(--winui-danger-pressed);
+      color: #ffffff;
+    }
+
+    /* Tombol command bar: ikon di atas, tulisan di bawah */
+    button.cmd {
+      flex-direction: column;
+      gap: 4px;
+      min-width: 60px;
+      min-height: 48px;
+      padding: 6px 10px;
+      font-size: 12px;
+      background-color: transparent;
+      border-color: transparent;
+    }
+    button.cmd .icon { font-size: 18px; }
+    button.cmd:hover { background-color: var(--winui-subtle-hover); }
+    button.cmd:active {
+      background-color: var(--winui-subtle-pressed);
+      color: var(--winui-text-secondary);
+    }
+    button.cmd.accent-soft { background-color: var(--winui-accent-soft); }
+    button.cmd.accent-soft:hover { background-color: var(--winui-accent-soft); filter: brightness(1.08); }
+
+    /* Tombol ikon kecil (Previous / Next page) */
+    button.icon-btn {
+      min-width: 32px;
+      width: 32px;
+      padding: 0;
+      background-color: transparent;
+      border-color: transparent;
+    }
+    button.icon-btn .icon { font-size: 12px; }
+    button.icon-btn:hover { background-color: var(--winui-subtle-hover); }
+    button.icon-btn:active { background-color: var(--winui-subtle-pressed); }
+
+    /* ===== Kotak angka (TextBox WinUI 3) ===== */
+    input {
+      font-family: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+      font-size: 13px;
+      min-height: 32px;
+      padding: 5px 8px;
+      color: var(--winui-text-primary);
+      background-color: var(--winui-control-bg);
+      border: 1px solid var(--winui-border);
+      border-bottom: 1px solid var(--winui-border-strong);
+      border-radius: 4px;
+      outline: none;
+    }
+    input:hover { background-color: var(--winui-control-hover); }
+    input:focus {
+      background-color: var(--winui-input-focus-bg);
+      border-bottom: 2px solid var(--winui-accent-light);
+      padding-bottom: 4px;
+    }
+    input[type="number"] {
+      width: 64px;
+      text-align: center;
+      cursor: text;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    /* ===== ComboBox WinUI 3 ===== */
+    button.combo {
+      min-width: 130px;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 5px 10px 5px 12px;
+      text-align: left;
+    }
+    .combo-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .combo-chevron {
+      font-size: 10px;
+      color: var(--winui-text-secondary);
+    }
+    .combo-flyout {
+      position: fixed;
+      z-index: 10000;
+      padding: 4px;
+      max-height: 60vh;
+      overflow-y: auto;
+      border-radius: 8px;
+      background: var(--winui-flyout-bg);
+      backdrop-filter: blur(30px);
+      border: 1px solid var(--winui-border-strong);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    }
+    .combo-item {
+      position: relative;
+      padding: 7px 14px 7px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      white-space: nowrap;
+      color: var(--winui-text-primary);
+      cursor: default;
+    }
+    .combo-item:hover { background: var(--winui-subtle-hover); }
+    .combo-item.selected { background: var(--winui-subtle-hover); }
+    .combo-item.selected::before {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 16px;
+      border-radius: 2px;
+      background: var(--winui-accent-light);
+    }
+
+    /* Custom Scrollbar Fluent Style */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 5px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    *:hover::-webkit-scrollbar-thumb,
+    .scrolling::-webkit-scrollbar-thumb {
+      background: var(--winui-scroll-thumb);
+      background-clip: padding-box;
+    }
+    *:hover::-webkit-scrollbar-thumb:hover {
+      background: var(--winui-scroll-thumb-hover);
+      background-clip: padding-box;
+    }
+
+    /* Normal PDF Reader Container (Mica shines through) */
+    #reader-container {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      gap: 20px;
+      position: relative;
+      background: transparent;
+    }
+
+    .empty-state {
+      color: var(--winui-text-secondary);
+      margin-top: 22vh;
+      font-size: 14px;
+      text-align: center;
+      padding: 24px 36px;
+      border-radius: 10px;
+      background: var(--winui-subtle-surface);
+      border: 1px solid var(--winui-border);
+    }
+
+    /* PDF Page Wrapper (Canvas + TextLayer) */
+    .page-wrapper {
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      background-color: #ffffff;
+      line-height: 1;
+      flex-shrink: 0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .page-wrapper canvas {
+      display: block;
+    }
+
+    /* Single-Page & Fullscreen Stage */
+    #single-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stage-layer {
+      position: absolute;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      background-color: #ffffff;
+      line-height: 1;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .stage-layer.dissolve-anim {
+      transition: opacity 0.42s ease-in-out;
+    }
+
+    /* High-Visibility Text Selection Layer */
+    .textLayer {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      opacity: 1 !important;
+    }
+    .textLayer span {
+      cursor: text;
+    }
+    .textLayer ::selection {
+      background: rgba(255, 235, 59, 0.65) !important;
+      color: transparent;
+      mix-blend-mode: normal;
+    }
+
+    /* Presenter View Container (Fluent Cards on Mica) */
+    #presenter-container {
+      display: none;
+      flex: 1;
+      background: transparent;
+      padding: 20px;
+      gap: 20px;
+      overflow: hidden;
+    }
+    .presenter-left {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--winui-subtle-surface);
+      border: 1px solid var(--winui-border);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+    }
+    .presenter-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .next-slide-box {
+      flex: 1;
+      background: var(--winui-subtle-surface);
+      border: 1px solid var(--winui-border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .presenter-info-box {
+      background: var(--winui-subtle-surface);
+      border: 1px solid var(--winui-border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--winui-text-secondary);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    #timer-display {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--winui-accent-light);
+      font-variant-numeric: tabular-nums;
+      margin: 6px 0;
+    }
+
+    /* Single Monitor Fullscreen Mode */
+    body.single-fullscreen #titlebar,
+    body.single-fullscreen #toolbar {
+      display: none;
+    }
+    body.single-fullscreen #reader-container {
+      padding: 0;
+      background-color: #000;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Fluent Dialog Modals (Acrylic Blur) */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .modal-backdrop.open {
+      opacity: 1;
+    }
+    .modal-box {
+      position: relative;
+      background: var(--winui-dialog-bg);
+      backdrop-filter: blur(24px);
+      padding: 24px;
+      border-radius: 10px;
+      width: 400px;
+      border: 1px solid var(--winui-border-strong);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      opacity: 0;
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.12s ease-in, opacity 0.12s linear;
+    }
+    .modal-backdrop.open .modal-box {
+      opacity: 1;
+      transform: none;
+      transition: transform 0.26s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.16s linear;
+    }
+    .modal-box h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--winui-text-primary);
+    }
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--winui-text-secondary);
+    }
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* Tombol close (X) gaya Windows 11 di pojok kanan atas dialog */
+    button.modal-close {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 46px;
+      height: 32px;
+      min-height: 0;
+      padding: 0;
+      background-color: transparent;
+      border: none;
+      border-radius: 0 10px 0 0;
+    }
+    button.modal-close .icon {
+      font-size: 10px;
+    }
+    button.modal-close:hover {
+      background-color: #c42b1c;
+      color: #ffffff;
+    }
+    button.modal-close:active {
+      background-color: #b3382c;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    /* ===== Area utama: Preview slide (kiri) + pembaca PDF ===== */
+    #main-area {
+      position: relative;
+      flex: 1;
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    #main-area > #reader-container {
+      min-width: 0;
+    }
+    #thumb-panel {
+      width: 184px;
+      flex-shrink: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      transition: width 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+    #thumb-panel.collapsed {
+      width: 0;
+      overflow: hidden;
+    }
+    #thumb-panel:has(#thumb-list:empty),
+    body.single-fullscreen #thumb-panel {
+      display: none;
+    }
+    body[data-mode="presenter"] #main-area,
+    body[data-mode="presenter"] #btn-toggle-thumbs {
+      display: none;
+    }
+    #thumb-list {
+      width: 184px;
+      padding: 8px 12px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
+    }
+    #thumb-panel.collapsed #thumb-list {
+      transform: translateX(-72px);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .thumb-item {
+      width: 150px;
+      animation: thumb-enter 0.45s cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: default;
+    }
+    .thumb-frame {
+      position: relative;
+      background: #ffffff;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+    .thumb-frame::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 6px;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 2px transparent;
+    }
+    @keyframes thumb-enter {
+      from { opacity: 0; transform: translateX(-36px); }
+      to { opacity: 1; transform: none; }
+    }
+    .thumb-item:not([data-loaded]) .thumb-frame {
+      background: var(--winui-divider);
+      animation: thumb-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes thumb-pulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+    .thumb-frame canvas {
+      display: block;
+    }
+    .thumb-item:hover .thumb-frame::after {
+      box-shadow: inset 0 0 0 2px var(--winui-border-strong);
+    }
+    .thumb-item.active .thumb-frame::after {
+      box-shadow: inset 0 0 0 2px var(--winui-accent-light);
+    }
+    .thumb-num {
+      font-size: 13px;
+      color: var(--winui-text-secondary);
+    }
+    .thumb-item.active .thumb-num {
+      color: var(--winui-text-primary);
+      font-weight: 600;
+    }
+    button.icon-btn.toggled {
+      background-color: var(--winui-subtle-hover);
+    }
+
+    /* ===== Tombol Slide Show dengan menu (split button) ===== */
+    .split-btn {
+      display: inline-flex;
+      gap: 1px;
+    }
+    .split-btn button.cmd:first-child {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    .split-btn button.split-arrow {
+      min-width: 24px;
+      padding: 6px 4px;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+    .split-btn button.split-arrow .icon {
+      font-size: 10px;
+    }
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 32px;
+    }
+    .menu-shortcut {
+      font-size: 12px;
+      color: var(--winui-text-secondary);
+    }
+    
+    /* ===== Animasi masuk ke mode Slide Show (gaya UWP / Windows 8) ===== */
+    .mode-enter {
+      animation: mode-enter 0.4s cubic-bezier(0.1, 0.9, 0.2, 1) both;
+    }
+    @keyframes mode-enter {
+      from { opacity: 0; transform: translateX(80px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* ===== Spinner saat PDF sedang dibuka ===== */
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: color-mix(in srgb, var(--winui-dialog-bg) 70%, transparent);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+    }
+    #loading-overlay.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 0.2s ease;
+    }
+    .progress-ring {
+      width: 48px;
+      height: 48px;
+      animation: ring-rotate 1.4s linear infinite;
+    }
+    .progress-ring circle {
+      fill: none;
+      stroke: var(--winui-accent-light);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-dasharray: 2 124;
+      animation: ring-dash 1.4s ease-in-out infinite;
+    }
+    @keyframes ring-rotate {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes ring-dash {
+      0% { stroke-dasharray: 2 124; stroke-dashoffset: 0; }
+      50% { stroke-dasharray: 80 46; stroke-dashoffset: -30; }
+      100% { stroke-dasharray: 2 124; stroke-dashoffset: -125; }
+    }
+    .loading-text {
+      font-size: 13px;
+      color: var(--winui-text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CUSTOM WINUI 3 TITLEBAR (MENYATU DENGAN MICA) -->
+  <div id="titlebar">
+    <div class="titlebar-text">
+      <span id="titlebar-brand">BV Reader</span><span id="titlebar-filename"></span>
+    </div>
+  </div>
+
+  <!-- DRAG & DROP OVERLAY -->
+  <div id="drop-overlay">Drop your PDF file here to open in BV Reader</div>
+
+  <!-- MAIN COMMAND BAR / TOOLBAR -->
+  <div id="toolbar">
+    <div class="toolbar-group">
+      <button id="btn-toggle-thumbs" class="icon-btn toggled" title="Show / Hide Slide Preview"><span class="icon">&#xE700;</span></button>
+      <button id="btn-open" class="primary"><span class="icon">&#xE8E5;</span><span>Open PDF</span></button>
+      <select id="view-mode" title="Reading Mode">
+        <option value="continuous">Continuous Scroll</option>
+        <option value="single">Single Page</option>
+      </select>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <button id="btn-prev" class="icon-btn" title="Previous Page"><span class="icon">&#xE76B;</span></button>
+      <input type="number" id="page-input" value="1" min="1">
+      <span id="page-count" class="toolbar-label">/ 0</span>
+      <button id="btn-next" class="icon-btn" title="Next Page"><span class="icon">&#xE76C;</span></button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group" id="zoom-controls">
+      <label for="zoom-select" class="toolbar-label">Zoom:</label>
+      <select id="zoom-select" title="Zoom Level">
+        <option value="fit" selected>Fit to Screen</option>
+        <option value="0.25">25%</option>
+        <option value="0.5">50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+        <option value="custom" id="custom-zoom-option">Custom Size...</option>
+      </select>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <label for="transition-select" class="toolbar-label">Transition:</label>
+      <select id="transition-select" title="Slide Transition Effect">
+        <option value="cut">Cut</option>
+        <option value="dissolve" selected>Fade</option>
+      </select>
+      <button id="btn-monitor-config" class="cmd" title="Configure Monitors"><span class="icon">&#xE7F4;</span><span>Select Monitor</span></button>
+      <div class="split-btn" id="slideshow-split">
+        <button id="btn-slideshow" class="cmd accent-soft"><span class="icon">&#xE768;</span><span>Slide Show (F5)</span></button>
+        <button id="btn-slideshow-menu" class="cmd accent-soft split-arrow" title="More Slide Show options"><span class="icon">&#xE70D;</span></button>
+      </div>
+      <button id="btn-stop-slideshow" class="danger" style="display:none;"><span class="icon">&#xE71A;</span><span>End Slide Show (ESC)</span></button>
+    </div>
+
+    <div class="toolbar-group push-right">
+      <label for="theme-select" class="toolbar-label">Theme:</label>
+      <select id="theme-select" title="App Theme">
+        <option value="system">Use system setting</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- AREA UTAMA: PREVIEW SLIDE (KIRI) + PEMBACA PDF -->
+  <div id="main-area">
+    <div id="thumb-panel">
+      <div id="thumb-list"></div>
+    </div>
+
+    <!-- NORMAL PDF READER CONTAINER -->
+    <div id="reader-container">
+      <div class="empty-state">
+        Click <b>"Open PDF"</b> or <b>Drag & Drop</b> a PDF file into this window.
+      </div>
+    </div>
+
+    <!-- SPINNER SAAT PDF SEDANG DIBUKA -->
+    <div id="loading-overlay">
+      <svg class="progress-ring" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20"></circle></svg>
+      <div class="loading-text">Opening PDF...</div>
+    </div>
+  </div>
+
+  <!-- PRESENTER VIEW CONTAINER (DUAL MONITOR) -->
+  <div id="presenter-container">
+    <div class="presenter-left">
+      <div class="panel-title">Current Slide (Live on Audience Display)</div>
+      <canvas id="presenter-current-canvas"></canvas>
+    </div>
+    <div class="presenter-right">
+      <div class="next-slide-box">
+        <div class="panel-title">Next Slide</div>
+        <canvas id="presenter-next-canvas"></canvas>
+      </div>
+      <div class="presenter-info-box">
+        <div class="panel-title">Presentation Timer</div>
+        <div id="timer-display">00:00:00</div>
+        <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: center;">
+          <button id="btn-pres-prev">◀ Previous</button>
+          <button id="btn-pres-next" class="primary">Next ▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MONITOR SELECTION MODAL -->
+  <div id="monitor-modal" class="modal-backdrop">
+    <div class="modal-box">
+      <button class="modal-close" data-cancel title="Close"><span class="icon">&#xE8BB;</span></button>
+      <h3>Slide Show Display Settings</h3>
+      <p style="font-size: 12px; color: var(--winui-text-secondary);">Choose which monitor shows Presenter View and which shows the Full-Screen Slide Show.</p>
+
+      <div class="form-row">
+        <label>Monitor 1 (Presenter View / Controls):</label>
+        <select id="select-presenter-monitor"></select>
+      </div>
+
+      <div class="form-row">
+        <label>Monitor 2 (Full-Screen Slide Show):</label>
+        <select id="select-audience-monitor"></select>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-close-modal" class="primary">Save</button>
+        <button id="btn-cancel-monitor" data-cancel>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM ZOOM POPUP MODAL -->
+  <div id="custom-zoom-modal" class="modal-backdrop">
+    <div class="modal-box" style="width: 320px;">
+      <button class="modal-close" data-cancel title="Close"><span class="icon">&#xE8BB;</span></button>
+      <h3>Custom Zoom Size</h3>
+      <div class="form-row">
+        <label for="custom-zoom-input">Enter zoom percentage (10% - 500%):</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" id="custom-zoom-input" value="125" min="10" max="500" style="width: 100%; text-align: left;">
+          <span>%</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-apply-zoom" class="primary">Apply</button>
+        <button id="btn-cancel-zoom">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./node_modules/pdfjs-dist/build/pdf.js"></script>
+  <script>
+    const { ipcRenderer, webUtils } = require('electron');
+    const path = require('path');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './node_modules/pdfjs-dist/build/pdf.worker.js';
+
+    let pdfDoc = null;
+    let currentPdfSource = null;
+    let currentPage = 1;
+
+    let zoomMode = 'fit';
+    let customZoomFactor = 1.0;
+    const BASE_SCALE = 1.33;
+
+    let viewMode = 'continuous';
+    let activeMode = 'normal';
+    let transitionEffect = 'dissolve';
+
+    let displays = [];
+    let presenterDisplayId = null;
+    let audienceDisplayId = null;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let resizeTimeout = null;
+
+    let stageContainer = null;
+    let stageLayers = [];
+    let activeLayerIdx = 0;
+    let stageTransitionTimer = null;
+
+    const titlebarBrand = document.getElementById('titlebar-brand');
+    const titlebarFilename = document.getElementById('titlebar-filename');
+    const readerContainer = document.getElementById('reader-container');
+    const presenterContainer = document.getElementById('presenter-container');
+    const pageInput = document.getElementById('page-input');
+    const pageCountLabel = document.getElementById('page-count');
+    const zoomSelect = document.getElementById('zoom-select');
+    const transitionSelect = document.getElementById('transition-select');
+    const customZoomOption = document.getElementById('custom-zoom-option');
+    const dropOverlay = document.getElementById('drop-overlay');
+
+    // Update Custom Titlebar Text:
+    // Tanpa file -> "BV Reader" (Bold)
+    // Ada file   -> "BV Reader:" (Bold) + " Nama File.pdf" (Regular)
+    function updateTitlebar(fileName = null) {
+      if (fileName) {
+        titlebarBrand.textContent = 'BV Reader:';
+        titlebarFilename.textContent = ' ' + fileName;
+        document.title = `BV Reader: ${fileName}`;
+      } else {
+        titlebarBrand.textContent = 'BV Reader';
+        titlebarFilename.textContent = '';
+        document.title = 'BV Reader';
+      }
+    }
+
+    // =========================================================
+    // 1. DRAG & DROP (FILES ONLY, IGNORE TEXT SELECTION)
+    // =========================================================
+    window.addEventListener('dragstart', (e) => {
+      e.preventDefault();
+    });
+
+    function isFileDrag(e) {
+      if (!e.dataTransfer || !e.dataTransfer.types) return false;
+      return Array.from(e.dataTransfer.types).includes('Files');
+    }
+
+    window.addEventListener('dragenter', (e) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      dropOverlay.style.display = 'flex';
+    });
+
+    window.addEventListener('dragover', (e) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      dropOverlay.style.display = 'flex';
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      if (e.relatedTarget === null || e.clientX <= 0 || e.clientY <= 0) {
+        dropOverlay.style.display = 'none';
+      }
+    });
+
+    window.addEventListener('drop', async (e) => {
+      dropOverlay.style.display = 'none';
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        const rawName = file.name || '';
+        const isPdf = rawName.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+
+        if (!isPdf) {
+          alert('Please drop a valid .PDF file.');
+          return;
+        }
+
+        let filePath = file.path;
+        if (!filePath && webUtils && typeof webUtils.getPathForFile === 'function') {
+          filePath = webUtils.getPathForFile(file);
+        }
+
+        if (filePath) {
+          await loadPdfSource(filePath, path.basename(filePath));
+        } else {
+          const arrayBuffer = await file.arrayBuffer();
+          await loadPdfSource({ data: new Uint8Array(arrayBuffer) }, rawName || 'Document.pdf');
+        }
+      }
+    });
+
+    async function loadPdfSource(source, explicitFileName = null) {
+      if (!source) return;
+      showLoading();
+      currentPdfSource = source;
+
+      const displayFileName = explicitFileName || (typeof source === 'string' ? path.basename(source) : 'Document.pdf');
+      updateTitlebar(displayFileName);
+
+      ipcRenderer.send('preload-pdf', { pdfSource: source, transition: transitionEffect });
+
+      const loadingTask = pdfjsLib.getDocument(source);
+      try {
+        pdfDoc = await loadingTask.promise;
+      } catch (err) {
+        hideLoading();
+        alert('This file could not be opened as a PDF.');
+        return;
+      }
+      currentPage = 1;
+      pageInput.max = pdfDoc.numPages;
+      pageCountLabel.textContent = `/ ${pdfDoc.numPages}`;
+      buildThumbnails();
+
+      zoomMode = 'fit';
+      zoomSelect.value = 'fit';
+      customZoomOption.textContent = 'Custom Size...';
+
+      stageContainer = null;
+      await renderReader(true);
+    }
+
+    document.getElementById('btn-open').addEventListener('click', async () => {
+      const filePath = await ipcRenderer.invoke('open-file-dialog');
+      if (filePath) await loadPdfSource(filePath, path.basename(filePath));
+    });
+
+    transitionSelect.addEventListener('change', (e) => {
+      transitionEffect = e.target.value;
+      ipcRenderer.send('set-transition', transitionEffect);
+    });
+
+    // =========================================================
+    // 2. DISPLAY DETECTION
+    // =========================================================
+    async function loadDisplays() {
+      displays = await ipcRenderer.invoke('get-displays');
+      populateMonitorSelects();
+    }
+
+    function populateMonitorSelects() {
+      const presSelect = document.getElementById('select-presenter-monitor');
+      const audSelect = document.getElementById('select-audience-monitor');
+      presSelect.innerHTML = '';
+      audSelect.innerHTML = '';
+
+      displays.forEach((d) => {
+        presSelect.add(new Option(d.label, d.id));
+        audSelect.add(new Option(d.label, d.id));
+      });
+
+      if (displays.length > 0) {
+        presenterDisplayId = displays[0].id;
+        audienceDisplayId = displays.length > 1 ? displays[1].id : displays[0].id;
+        presSelect.value = presenterDisplayId;
+        audSelect.value = audienceDisplayId;
+      }
+    }
+
+    ipcRenderer.on('displays-updated', (e, updatedDisplays) => {
+      displays = updatedDisplays;
+      populateMonitorSelects();
+    });
+
+    loadDisplays();
+
+    // =========================================================
+    // 3. CRISP HiDPI SUPERSAMPLED RENDERING & DISSOLVE ENGINE
+    // =========================================================
+    function calculatePageScale(page) {
+      const unscaled = page.getViewport({ scale: 1 });
+      if (zoomMode === 'fit') {
+        const availWidth = Math.max(200, readerContainer.clientWidth - 48);
+        const availHeight = Math.max(200, readerContainer.clientHeight - 40);
+        return Math.min(availWidth / unscaled.width, availHeight / unscaled.height);
+      } else {
+        return customZoomFactor * BASE_SCALE;
+      }
+    }
+
+    async function renderPageHiDPI(pageNumber, targetCanvas, cssScale, textLayerDiv = null) {
+      const page = await pdfDoc.getPage(pageNumber);
+      const finalScale = cssScale || calculatePageScale(page);
+      const viewport = page.getViewport({ scale: finalScale });
+
+      const outputScale = Math.max(window.devicePixelRatio || 1, 2.0);
+      const pixelWidth = Math.floor(viewport.width * outputScale);
+      const pixelHeight = Math.floor(viewport.height * outputScale);
+      const cssWidth = Math.floor(viewport.width);
+      const cssHeight = Math.floor(viewport.height);
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = pixelWidth;
+      offscreen.height = pixelHeight;
+      const offCtx = offscreen.getContext('2d', { alpha: false });
+      offCtx.imageSmoothingEnabled = true;
+      offCtx.imageSmoothingQuality = 'high';
+      offCtx.fillStyle = '#ffffff';
+      offCtx.fillRect(0, 0, pixelWidth, pixelHeight);
+
+      const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+      await page.render({
+        canvasContext: offCtx,
+        transform: transform,
+        viewport: viewport
+      }).promise;
+
+      targetCanvas.width = pixelWidth;
+      targetCanvas.height = pixelHeight;
+      targetCanvas.style.width = `${cssWidth}px`;
+      targetCanvas.style.height = `${cssHeight}px`;
+
+      const targetCtx = targetCanvas.getContext('2d', { alpha: false });
+      targetCtx.drawImage(offscreen, 0, 0);
+
+      if (textLayerDiv) {
+        textLayerDiv.innerHTML = '';
+        textLayerDiv.style.width = `${cssWidth}px`;
+        textLayerDiv.style.height = `${cssHeight}px`;
+        textLayerDiv.style.setProperty('--scale-factor', viewport.scale);
+
+        const textContent = await page.getTextContent();
+        await pdfjsLib.renderTextLayer({
+          textContentSource: textContent,
+          container: textLayerDiv,
+          viewport: viewport,
+          textDivs: []
+        }).promise;
+      }
+
+      return { cssWidth, cssHeight };
+    }
+
+    async function renderPageFitBoxHiDPI(pageNumber, targetCanvas, maxWidth, maxHeight) {
+      if (!pdfDoc || pageNumber > pdfDoc.numPages) return;
+      const page = await pdfDoc.getPage(pageNumber);
+      const unscaled = page.getViewport({ scale: 1 });
+      const scale = Math.min((maxWidth - 10) / unscaled.width, (maxHeight - 10) / unscaled.height);
+      return await renderPageHiDPI(pageNumber, targetCanvas, scale, null);
+    }
+
+    function createPageElement(idSuffix = '') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'page-wrapper';
+      if (idSuffix) wrapper.id = `page-wrapper-${idSuffix}`;
+
+      const canvas = document.createElement('canvas');
+      const textLayer = document.createElement('div');
+      textLayer.className = 'textLayer';
+
+      wrapper.appendChild(canvas);
+      wrapper.appendChild(textLayer);
+      return { wrapper, canvas, textLayer };
+    }
+
+    function ensureSingleStage() {
+      if (stageContainer && readerContainer.contains(stageContainer)) return;
+      readerContainer.innerHTML = '';
+      stageContainer = document.createElement('div');
+      stageContainer.id = 'single-stage';
+
+      stageLayers = [0, 1].map(() => {
+        const layer = document.createElement('div');
+        layer.className = 'stage-layer';
+        layer.style.opacity = '0';
+        layer.style.zIndex = '1';
+        const canvas = document.createElement('canvas');
+        const textLayer = document.createElement('div');
+        textLayer.className = 'textLayer';
+        layer.appendChild(canvas);
+        layer.appendChild(textLayer);
+        stageContainer.appendChild(layer);
+        return { layer, canvas, textLayer };
+      });
+
+      activeLayerIdx = 0;
+      stageLayers[0].layer.style.opacity = '1';
+      stageLayers[0].layer.style.zIndex = '2';
+      readerContainer.appendChild(stageContainer);
+      stageContainer.style.visibility = 'hidden';
+    }
+
+    // Menyelesaikan transisi yang sedang berjalan: lapisan aktif tampil penuh, lapisan lain disembunyikan
+    function finishStageTransition() {
+      clearTimeout(stageTransitionTimer);
+      stageLayers.forEach((s, i) => {
+        s.layer.classList.remove('dissolve-anim');
+        s.layer.style.opacity = i === activeLayerIdx ? '1' : '0';
+        s.layer.style.zIndex = i === activeLayerIdx ? '2' : '1';
+      });
+    }
+
+    async function renderSingleStage(useTransition = false) {
+      ensureSingleStage();
+      if (useTransition) finishStageTransition();
+      const isFullscreen = activeMode === 'single-fullscreen';
+      const nextIdx = useTransition ? (1 - activeLayerIdx) : activeLayerIdx;
+      const targetObj = stageLayers[nextIdx];
+      const prevObj = stageLayers[activeLayerIdx];
+
+      let dims;
+      if (isFullscreen) {
+        dims = await renderPageFitBoxHiDPI(currentPage, targetObj.canvas, window.innerWidth, window.innerHeight);
+        targetObj.textLayer.innerHTML = '';
+      } else {
+        dims = await renderPageHiDPI(currentPage, targetObj.canvas, null, targetObj.textLayer);
+      }
+
+      if (dims) {
+        stageContainer.style.visibility = 'visible';
+        hideLoading();
+        stageContainer.style.width = `${dims.cssWidth}px`;
+        stageContainer.style.height = `${dims.cssHeight}px`;
+      }
+
+      if (!useTransition) {
+        targetObj.layer.style.zIndex = '2';
+        if (fadeInNext && transitionEffect === 'dissolve') {
+          // Slide pertama muncul perlahan (fade in), bukan tiba-tiba
+          stageLayers.forEach(s => s.layer.classList.remove('dissolve-anim'));
+          targetObj.layer.style.opacity = '0';
+          void targetObj.layer.offsetWidth;
+          targetObj.layer.classList.add('dissolve-anim');
+        }
+        fadeInNext = false;
+        targetObj.layer.style.opacity = '1';
+        return;
+      }
+
+      const isDissolve = isFullscreen && transitionEffect === 'dissolve';
+
+      // Slide lama TETAP tampil penuh di bawah. Hanya slide baru yang memudar masuk
+      // di atasnya, sehingga latar hitam tidak pernah "bocor" di tengah transisi.
+      stageLayers.forEach(s => s.layer.classList.remove('dissolve-anim'));
+      prevObj.layer.style.zIndex = '1';
+      prevObj.layer.style.opacity = '1';
+      targetObj.layer.style.zIndex = '2';
+      targetObj.layer.style.opacity = '0';
+      void targetObj.layer.offsetWidth;
+      targetObj.layer.classList.toggle('dissolve-anim', isDissolve);
+      targetObj.layer.style.opacity = '1';
+      activeLayerIdx = nextIdx;
+
+      if (isDissolve) {
+        // Setelah fade selesai, barulah slide lama disembunyikan
+        stageTransitionTimer = setTimeout(finishStageTransition, 460);
+      } else {
+        finishStageTransition();
+      }
+    }
+
+    let readerRenderId = 0; // nomor urut render, untuk membatalkan render lama jika ada yang baru
+
+    async function renderReader(forceRebuild = false, useTransition = false) {
+      if (!pdfDoc) return;
+      const myRenderId = ++readerRenderId;
+
+      if (activeMode === 'single-fullscreen' || viewMode === 'single') {
+        if (forceRebuild) stageContainer = null;
+        await renderSingleStage(useTransition);
+        pageInput.value = currentPage;
+        return;
+      }
+
+      stageContainer = null;
+      const existingWrappers = readerContainer.querySelectorAll('.page-wrapper');
+      if (!forceRebuild && existingWrappers.length === pdfDoc.numPages) {
+        for (let num = 1; num <= pdfDoc.numPages; num++) {
+          const wrapper = document.getElementById(`page-wrapper-${num}`);
+          if (!wrapper || myRenderId !== readerRenderId) return;
+          const canvas = wrapper.querySelector('canvas');
+          const textLayer = wrapper.querySelector('.textLayer');
+          await renderPageHiDPI(num, canvas, null, textLayer);
+        }
+        return;
+      }
+
+      scrollSyncLock = Infinity;
+      readerContainer.innerHTML = '';
+      for (let num = 1; num <= pdfDoc.numPages; num++) {
+        const { wrapper, canvas, textLayer } = createPageElement(num);
+        await renderPageHiDPI(num, canvas, null, textLayer);
+        if (myRenderId !== readerRenderId) return; // ada render yang lebih baru, hentikan yang lama
+        readerContainer.appendChild(wrapper);
+        hideLoading();
+      }
+      const currentWrapper = document.getElementById(`page-wrapper-${currentPage}`);
+      if (currentWrapper && currentPage > 1) currentWrapper.scrollIntoView({ block: 'start' });
+      scrollSyncLock = Date.now() + 300;
+      pageInput.value = currentPage;
+    }
+
+    async function renderPresenterView() {
+      if (!pdfDoc) return;
+      const currentCanvas = document.getElementById('presenter-current-canvas');
+      const nextCanvas = document.getElementById('presenter-next-canvas');
+
+      await renderPageFitBoxHiDPI(currentPage, currentCanvas, window.innerWidth * 0.58, window.innerHeight * 0.72);
+      
+      if (currentPage + 1 <= pdfDoc.numPages) {
+        await renderPageFitBoxHiDPI(currentPage + 1, nextCanvas, window.innerWidth * 0.28, window.innerHeight * 0.42);
+      } else {
+        const ctx = nextCanvas.getContext('2d');
+        nextCanvas.width = 300;
+        nextCanvas.height = 180;
+        nextCanvas.style.width = '300px';
+        nextCanvas.style.height = '180px';
+        ctx.fillStyle = '#1e1e1e';
+        ctx.fillRect(0, 0, 300, 180);
+        ctx.fillStyle = '#888';
+        ctx.font = '14px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('End of Document (Last Slide)', 150, 95);
+      }
+      pageInput.value = currentPage;
+    }
+
+    // =========================================================
+    // 4. ZOOM DROPDOWN & CUSTOM SIZE MODAL
+    // =========================================================
+    const customZoomModal = document.getElementById('custom-zoom-modal');
+    const customZoomInput = document.getElementById('custom-zoom-input');
+    let previousZoomValue = 'fit';
+
+    zoomSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val === 'fit') {
+        zoomMode = 'fit';
+        previousZoomValue = 'fit';
+        customZoomOption.textContent = 'Custom Size...';
+        renderReader(false);
+      } else if (val === 'custom') {
+        customZoomInput.value = Math.round(customZoomFactor * 100);
+        customZoomModal.style.display = 'flex';
+        customZoomInput.focus();
+        customZoomInput.select();
+      } else {
+        zoomMode = 'numeric';
+        customZoomFactor = parseFloat(val);
+        previousZoomValue = val;
+        customZoomOption.textContent = 'Custom Size...';
+        renderReader(false);
+      }
+    });
+
+    function applyCustomZoom() {
+      let pct = parseFloat(customZoomInput.value);
+      if (isNaN(pct)) pct = 100;
+      pct = Math.max(10, Math.min(500, pct));
+
+      zoomMode = 'numeric';
+      customZoomFactor = pct / 100;
+      customZoomOption.textContent = `Custom (${Math.round(pct)}%)`;
+      zoomSelect.value = 'custom';
+      previousZoomValue = 'custom';
+      customZoomModal.style.display = 'none';
+      renderReader(false);
+    }
+
+    document.getElementById('btn-apply-zoom').addEventListener('click', applyCustomZoom);
+    document.getElementById('btn-cancel-zoom').addEventListener('click', () => {
+      zoomSelect.value = previousZoomValue;
+      customZoomModal.style.display = 'none';
+    });
+
+    customZoomInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') applyCustomZoom();
+      if (e.key === 'Escape') {
+        zoomSelect.value = previousZoomValue;
+        customZoomModal.style.display = 'none';
+      }
+    });
+
+    zoomSelect.addEventListener('click', (e) => {
+      if (zoomSelect.value === 'custom' && e.detail === 0) {
+        customZoomModal.style.display = 'flex';
+      }
+    });
+
+    // =========================================================
+    // 5. NAVIGATION & CONTROLS
+    // =========================================================
+    function goToPage(num) {
+      if (!pdfDoc) return;
+      const target = Math.max(1, Math.min(pdfDoc.numPages, num));
+      if (target === currentPage && activeMode !== 'normal') return;
+      currentPage = target;
+      pageInput.value = currentPage;
+      highlightThumb(currentPage);
+
+      if (activeMode === 'presenter') {
+        ipcRenderer.send('sync-page', { pageNum: currentPage, transition: transitionEffect });
+        renderPresenterView();
+      } else if (activeMode === 'single-fullscreen') {
+        renderReader(false, true);
+      } else {
+        if (viewMode === 'continuous') {
+          const targetWrapper = document.getElementById(`page-wrapper-${currentPage}`);
+          if (targetWrapper) {
+            scrollSyncLock = Date.now() + 1000;
+            targetWrapper.scrollIntoView({ behavior: 'smooth' });
+          }
+        } else {
+          renderReader(false, true);
+        }
+      }
+    }
+
+    document.getElementById('btn-prev').addEventListener('click', () => goToPage(currentPage - 1));
+    document.getElementById('btn-next').addEventListener('click', () => goToPage(currentPage + 1));
+    document.getElementById('btn-pres-prev').addEventListener('click', () => goToPage(currentPage - 1));
+    document.getElementById('btn-pres-next').addEventListener('click', () => goToPage(currentPage + 1));
+
+    pageInput.addEventListener('change', (e) => goToPage(parseInt(e.target.value, 10)));
+
+    document.getElementById('view-mode').addEventListener('change', (e) => {
+      viewMode = e.target.value;
+      renderReader(true, false);
+    });
+
+    const monitorModal = document.getElementById('monitor-modal');
+
+    function resetMonitorSelects() {
+      document.getElementById('select-presenter-monitor').value = presenterDisplayId;
+      document.getElementById('select-audience-monitor').value = audienceDisplayId;
+    }
+
+    document.getElementById('btn-monitor-config').addEventListener('click', () => {
+      resetMonitorSelects();
+      openModal(monitorModal);
+    });
+
+    // Save: simpan pilihan monitor
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+      presenterDisplayId = document.getElementById('select-presenter-monitor').value;
+      audienceDisplayId = document.getElementById('select-audience-monitor').value;
+      closeModal(monitorModal);
+    });
+
+    // Cancel / tombol X / tombol Esc: buang perubahan
+    monitorModal.addEventListener('modal-cancel', resetMonitorSelects);
+
+    function startSlideShow(fromCurrentPage = false) {
+      if (!pdfDoc) {
+        alert('Please open a PDF file first!');
+        return;
+      }
+      if (!fromCurrentPage) {
+        currentPage = 1;
+        pageInput.value = 1;
+        highlightThumb(1);
+      }
+      ipcRenderer.send('start-slideshow', {
+        startPage: currentPage,
+        presenterDisplayId,
+        audienceDisplayId,
+        transition: transitionEffect
+      });
+    }
+
+    document.getElementById('btn-slideshow').addEventListener('click', () => startSlideShow(false));
+    document.getElementById('btn-stop-slideshow').addEventListener('click', () => {
+      ipcRenderer.send('stop-slideshow');
+    });
+
+    ipcRenderer.on('mode-changed', (e, { mode, page }) => {
+      activeMode = mode;
+      document.body.dataset.mode = mode;
+      if (page) currentPage = page;
+
+      const btnSlide = document.getElementById('slideshow-split');
+      const btnStop = document.getElementById('btn-stop-slideshow');
+      const zoomCtrl = document.getElementById('zoom-controls');
+
+      if (mode === 'presenter') {
+        document.body.classList.remove('single-fullscreen');
+        readerContainer.style.display = 'none';
+        presenterContainer.style.display = 'flex';
+        playEnterAnimation(presenterContainer);
+        btnSlide.style.display = 'none';
+        btnStop.style.display = 'inline-flex';
+        zoomCtrl.style.display = 'none';
+        startTimer();
+        renderPresenterView();
+      } else if (mode === 'single-fullscreen') {
+        document.body.classList.add('single-fullscreen');
+        presenterContainer.style.display = 'none';
+        readerContainer.style.display = 'flex';
+        fadeInNext = true;
+        // HAPUS BARIS INI: playEnterAnimation(readerContainer);
+        stageContainer = null;
+        renderReader(true, false);
+      } else {
+        document.body.classList.remove('single-fullscreen');
+        presenterContainer.style.display = 'none';
+        readerContainer.style.display = 'flex';
+        btnSlide.style.display = 'inline-flex';
+        btnStop.style.display = 'none';
+        zoomCtrl.style.display = 'flex';
+        stopTimer();
+        stageContainer = null;
+        highlightThumb(currentPage);
+        renderReader(true, false);
+      }
+    });
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      secondsElapsed = 0;
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const hrs = String(Math.floor(secondsElapsed / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
+        const secs = String(secondsElapsed % 60).padStart(2, '0');
+        document.getElementById('timer-display').textContent = `${hrs}:${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement === pageInput || document.activeElement === customZoomInput) return;
+
+      if (e.key === 'F5') {
+        e.preventDefault();
+        startSlideShow(e.shiftKey);
+      } else if (e.key === 'Escape') {
+        if (activeMode !== 'normal') {
+          ipcRenderer.send('stop-slideshow');
+        }
+      } else if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) {
+        if (activeMode !== 'normal' || viewMode === 'single') {
+          e.preventDefault();
+          goToPage(currentPage + 1);
+        }
+      } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) {
+        if (activeMode !== 'normal' || viewMode === 'single') {
+          e.preventDefault();
+          goToPage(currentPage - 1);
+        }
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (activeMode === 'presenter') {
+          renderPresenterView();
+        } else if (activeMode === 'single-fullscreen') {
+          renderReader(false, false);
+        } else if (activeMode === 'normal' && zoomMode === 'fit') {
+          renderReader(false, false);
+        }
+      }, 80);
+    });
+
+    
+    // =========================================================
+    // 6. WARNA AKSEN WINDOWS, TEMA, DAN COMBO BOX WINUI 3
+    // =========================================================
+
+    // --- 6a. Warna aksen Windows ---
+    let accentHex = '#0078d4';
+
+    function hexToRgb(hex) {
+      const h = hex.replace('#', '');
+      return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16));
+    }
+    function mixColor(a, b, t) {
+      return a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    }
+    function rgbCss(c) {
+      return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+    }
+    function luminance(c) {
+      const f = (v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+    }
+
+    function applyAccent(hex) {
+      if (hex && /^#[0-9a-fA-F]{6}$/.test(hex)) accentHex = hex;
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const base = hexToRgb(accentHex);
+      const white = [255, 255, 255];
+      const black = [0, 0, 0];
+
+      const fill = isDark ? mixColor(base, white, 0.35) : mixColor(base, black, 0.12);
+      const hover = mixColor(fill, isDark ? black : white, 0.10);
+      const pressed = mixColor(fill, isDark ? black : white, 0.20);
+      const text = isDark ? mixColor(base, white, 0.50) : mixColor(base, black, 0.30);
+      const onAccent = luminance(fill) > 0.179 ? '#000000' : '#ffffff';
+
+      const s = document.documentElement.style;
+      s.setProperty('--winui-accent', rgbCss(fill));
+      s.setProperty('--winui-accent-hover', rgbCss(hover));
+      s.setProperty('--winui-accent-pressed', rgbCss(pressed));
+      s.setProperty('--winui-accent-light', rgbCss(text));
+      s.setProperty('--winui-on-accent', onAccent);
+      s.setProperty('--winui-accent-soft', `rgba(${base[0]}, ${base[1]}, ${base[2]}, ${isDark ? 0.28 : 0.16})`);
+    }
+
+    ipcRenderer.invoke('get-accent-color').then(applyAccent).catch(() => applyAccent());
+    ipcRenderer.on('accent-color-changed', (e, hex) => applyAccent(hex));
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyAccent());
+    applyAccent();
+
+    // --- 6b. Pilihan tema: Light / Dark / Ikuti Windows ---
+    const themeSelect = document.getElementById('theme-select');
+    let savedTheme = 'system';
+    try { savedTheme = localStorage.getItem('bv-theme') || 'system'; } catch (err) {}
+    themeSelect.value = savedTheme;
+    ipcRenderer.send('set-theme', savedTheme);
+
+    themeSelect.addEventListener('change', () => {
+      try { localStorage.setItem('bv-theme', themeSelect.value); } catch (err) {}
+      ipcRenderer.send('set-theme', themeSelect.value);
+    });
+
+    // --- 6c. ComboBox gaya WinUI 3 (menggantikan tampilan <select> biasa) ---
+    let openCombo = null;
+
+    function closeCombo() {
+      if (openCombo) {
+        openCombo.flyout.remove();
+        openCombo.button.classList.remove('open');
+        openCombo = null;
+      }
+    }
+
+    function makeCombo(select) {
+      select.style.display = 'none';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'combo';
+      if (select.title) button.title = select.title;
+      button.innerHTML = '<span class="combo-text"></span><span class="icon combo-chevron">&#xE70D;</span>';
+      select.insertAdjacentElement('afterend', button);
+      const textEl = button.querySelector('.combo-text');
+
+      function refresh() {
+        const opt = select.options[select.selectedIndex];
+        textEl.textContent = opt ? opt.textContent : '';
+      }
+
+      // Jika bagian lain program mengubah select.value, tulisan di tombol ikut berubah
+      const valueDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+      Object.defineProperty(select, 'value', {
+        get() { return valueDesc.get.call(select); },
+        set(v) { valueDesc.set.call(select, v); refresh(); }
+      });
+      new MutationObserver(refresh).observe(select, { childList: true, characterData: true, subtree: true });
+      select.addEventListener('change', refresh);
+      refresh();
+
+      button.addEventListener('click', () => {
+        if (openCombo && openCombo.button === button) { closeCombo(); return; }
+        closeCombo();
+
+        const flyout = document.createElement('div');
+        flyout.className = 'combo-flyout';
+        Array.from(select.options).forEach((opt, i) => {
+          const item = document.createElement('div');
+          item.className = 'combo-item' + (i === select.selectedIndex ? ' selected' : '');
+          item.textContent = opt.textContent;
+          item.addEventListener('click', () => {
+            const changed = select.selectedIndex !== i;
+            select.selectedIndex = i;
+            closeCombo();
+            refresh();
+            if (changed || opt.value === 'custom') {
+              select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          });
+          flyout.appendChild(item);
+        });
+        document.body.appendChild(flyout);
+
+        const rect = button.getBoundingClientRect();
+        flyout.style.minWidth = rect.width + 'px';
+        let top = rect.bottom + 4;
+        if (top + flyout.offsetHeight > window.innerHeight - 8) {
+          top = Math.max(8, rect.top - flyout.offsetHeight - 4);
+        }
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - flyout.offsetWidth - 8));
+        flyout.style.left = left + 'px';
+        flyout.style.top = top + 'px';
+
+        button.classList.add('open');
+        openCombo = { flyout, button };
+      });
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      if (openCombo && !openCombo.flyout.contains(e.target) && !openCombo.button.contains(e.target)) {
+        closeCombo();
+      }
+    });
+    window.addEventListener('blur', closeCombo);
+    window.addEventListener('resize', closeCombo);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && openCombo) {
+        closeCombo();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+
+    document.querySelectorAll('select').forEach(makeCombo);
+
+    // =========================================================
+    // 7. NOMOR HALAMAN IKUT SCROLL, SCROLL WHEEL, PREVIEW SLIDE, MENU SLIDE SHOW
+    // =========================================================
+
+    // --- 7a. Nomor halaman mengikuti scroll (mode Continuous Scroll) ---
+    let scrollSyncLock = 0;
+    let scrollTicking = false;
+
+    function syncPageFromScroll() {
+      scrollTicking = false;
+      if (!pdfDoc || activeMode !== 'normal' || viewMode !== 'continuous') return;
+      if (Date.now() < scrollSyncLock) return;
+
+      const box = readerContainer.getBoundingClientRect();
+      let bestPage = currentPage;
+      let bestVisible = -1;
+      readerContainer.querySelectorAll('.page-wrapper').forEach((w) => {
+        const r = w.getBoundingClientRect();
+        const visible = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
+        if (visible > bestVisible) {
+          bestVisible = visible;
+          bestPage = parseInt(w.id.replace('page-wrapper-', ''), 10);
+        }
+      });
+
+      if (bestPage !== currentPage) {
+        currentPage = bestPage;
+        if (document.activeElement !== pageInput) pageInput.value = currentPage;
+        highlightThumb(currentPage);
+      }
+    }
+
+    readerContainer.addEventListener('scroll', () => {
+      if (!scrollTicking) {
+        scrollTicking = true;
+        requestAnimationFrame(syncPageFromScroll);
+      }
+    }, { passive: true });
+
+    // --- 7b. Mode Single Page: scroll wheel mouse mengganti halaman ---
+    let wheelCooldown = 0;
+
+    readerContainer.addEventListener('wheel', (e) => {
+      if (!pdfDoc) return;
+      const singleMode = activeMode === 'single-fullscreen' || (activeMode === 'normal' && viewMode === 'single');
+      if (!singleMode) return;
+
+      // Jika halaman lebih besar dari jendela (zoom besar), scroll dulu isinya.
+      // Halaman baru berganti kalau sudah mentok di bawah atau di atas.
+      const el = readerContainer;
+      if (el.scrollHeight > el.clientHeight + 1) {
+        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+        const atTop = el.scrollTop <= 0;
+        if (e.deltaY > 0 && !atBottom) return;
+        if (e.deltaY < 0 && !atTop) return;
+      }
+
+      e.preventDefault();
+      const now = Date.now();
+      if (now < wheelCooldown || Math.abs(e.deltaY) < 4) return;
+      wheelCooldown = now + 180;
+      goToPage(currentPage + (e.deltaY > 0 ? 1 : -1));
+    }, { passive: false });
+
+    // --- 7c. Preview slide di sebelah kiri ---
+    const thumbPanel = document.getElementById('thumb-panel');
+    const thumbList = document.getElementById('thumb-list');
+    const btnToggleThumbs = document.getElementById('btn-toggle-thumbs');
+    const THUMB_W = 150;
+    let thumbObserver = null;
+    let thumbBuildId = 0;
+
+    async function buildThumbnails() {
+      const buildId = ++thumbBuildId;
+      const doc = pdfDoc;
+      if (!doc) return;
+
+      const first = await doc.getPage(1);
+      if (buildId !== thumbBuildId) return;
+      thumbList.innerHTML = '';
+      if (thumbObserver) thumbObserver.disconnect();
+      const v1 = first.getViewport({ scale: 1 });
+      const ratio = v1.height / v1.width;
+
+      thumbObserver = new IntersectionObserver((entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting && !en.target.dataset.done) {
+            en.target.dataset.done = '1';
+            renderThumb(doc, en.target, buildId);
+          }
+        });
+      }, { root: thumbPanel, rootMargin: '400px 0px' });
+
+      for (let n = 1; n <= doc.numPages; n++) {
+        const item = document.createElement('div');
+        item.className = 'thumb-item';
+        item.style.animationDelay = Math.min(n - 1, 8) * 40 + 'ms';
+        item.dataset.page = n;
+        item.innerHTML = '<div class="thumb-frame"><canvas></canvas></div><div class="thumb-num">' + n + '</div>';
+        const frame = item.querySelector('.thumb-frame');
+        frame.style.width = THUMB_W + 'px';
+        frame.style.height = Math.round(THUMB_W * ratio) + 'px';
+        item.addEventListener('click', () => goToPage(n));
+        thumbList.appendChild(item);
+        thumbObserver.observe(item);
+      }
+      highlightThumb(currentPage);
+    }
+
+    async function renderThumb(doc, item, buildId) {
+      const n = parseInt(item.dataset.page, 10);
+      const page = await doc.getPage(n);
+      if (buildId !== thumbBuildId) return;
+
+      const unscaled = page.getViewport({ scale: 1 });
+      const cssScale = THUMB_W / unscaled.width;
+      const outScale = Math.max(window.devicePixelRatio || 1, 1.5);
+      const viewport = page.getViewport({ scale: cssScale * outScale });
+      const cssHeight = Math.round(unscaled.height * cssScale);
+
+      const canvas = item.querySelector('canvas');
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      canvas.style.width = THUMB_W + 'px';
+      canvas.style.height = cssHeight + 'px';
+      item.querySelector('.thumb-frame').style.height = cssHeight + 'px';
+
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      item.dataset.loaded = '1';
+    }
+
+    function highlightThumb(num) {
+      const prev = thumbList.querySelector('.thumb-item.active');
+      if (prev) prev.classList.remove('active');
+      const item = thumbList.querySelector('.thumb-item[data-page="' + num + '"]');
+      if (item) {
+        item.classList.add('active');
+        item.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    // Tombol sembunyikan / tampilkan preview
+    function setThumbsVisible(visible, save = true) {
+      thumbPanel.classList.toggle('collapsed', !visible);
+      btnToggleThumbs.classList.toggle('toggled', visible);
+      if (save) {
+        try { localStorage.setItem('bv-thumbs', visible ? '1' : '0'); } catch (err) {}
+        // Tunggu animasi selesai, baru ukuran halaman dihitung ulang
+        setTimeout(() => {
+          if (zoomMode === 'fit') renderReader(false, false);
+        }, 320);
+      }
+    }
+    btnToggleThumbs.addEventListener('click', () => {
+      setThumbsVisible(thumbPanel.classList.contains('collapsed'));
+    });
+    try {
+      if (localStorage.getItem('bv-thumbs') === '0') setThumbsVisible(false, false);
+    } catch (err) {}
+
+    // --- 7d. Menu Slide Show (From Beginning / From This Page) ---
+    function placeFlyout(flyout, anchor) {
+      const rect = anchor.getBoundingClientRect();
+      flyout.style.minWidth = rect.width + 'px';
+      let top = rect.bottom + 4;
+      if (top + flyout.offsetHeight > window.innerHeight - 8) {
+        top = Math.max(8, rect.top - flyout.offsetHeight - 4);
+      }
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - flyout.offsetWidth - 8));
+      flyout.style.left = left + 'px';
+      flyout.style.top = top + 'px';
+    }
+
+    document.getElementById('btn-slideshow-menu').addEventListener('click', (e) => {
+      const button = e.currentTarget;
+      if (openCombo && openCombo.button === button) { closeCombo(); return; }
+      closeCombo();
+
+      const flyout = document.createElement('div');
+      flyout.className = 'combo-flyout';
+      [
+        ['From Beginning', 'F5', false],
+        ['From This Page', 'Shift+F5', true]
+      ].forEach(([label, shortcut, fromCurrent]) => {
+        const item = document.createElement('div');
+        item.className = 'combo-item menu-item';
+        item.innerHTML = '<span>' + label + '</span><span class="menu-shortcut">' + shortcut + '</span>';
+        item.addEventListener('click', () => {
+          closeCombo();
+          startSlideShow(fromCurrent);
+        });
+        flyout.appendChild(item);
+      });
+      document.body.appendChild(flyout);
+      placeFlyout(flyout, document.getElementById('slideshow-split'));
+      openCombo = { flyout, button };
+    });
+
+    // =========================================================
+    // 8. SCROLLBAR AUTO-HIDE DAN ANIMASI POPUP (MODAL)
+    // =========================================================
+
+    // --- 8a. Scrollbar tampil saat di-scroll atau disorot mouse, lalu hilang ---
+    const scrollHideTimers = new WeakMap();
+    document.addEventListener('scroll', (e) => {
+      const el = e.target;
+      if (!(el instanceof Element)) return;
+      el.classList.add('scrolling');
+      clearTimeout(scrollHideTimers.get(el));
+      scrollHideTimers.set(el, setTimeout(() => el.classList.remove('scrolling'), 900));
+    }, true);
+
+    // --- 8b. Popup / modal dengan animasi ala Windows 11 ---
+    // Pakai openModal(elemen) dan closeModal(elemen) untuk SEMUA popup,
+    // jangan lagi mengatur style.display secara langsung.
+    function openModal(backdrop) {
+      clearTimeout(backdrop._hideTimer);
+      backdrop.style.display = 'flex';
+      void backdrop.offsetWidth;
+      backdrop.classList.add('open');
+    }
+
+    function closeModal(backdrop) {
+      if (!backdrop.classList.contains('open')) return;
+      closeCombo();
+      backdrop.classList.remove('open');
+      clearTimeout(backdrop._hideTimer);
+      backdrop._hideTimer = setTimeout(() => {
+        backdrop.style.display = 'none';
+      }, 200);
+    }
+
+    // Tombol dengan atribut data-cancel (tombol Cancel dan tombol X) = batalkan
+    document.querySelectorAll('.modal-backdrop').forEach((modal) => {
+      modal.querySelectorAll('[data-cancel]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          modal.dispatchEvent(new CustomEvent('modal-cancel'));
+          closeModal(modal);
+        });
+      });
+    });
+
+    // Tombol Esc = Cancel
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const modal = document.querySelector('.modal-backdrop.open');
+      const cancelBtn = modal && modal.querySelector('[data-cancel]');
+      if (cancelBtn) {
+        cancelBtn.click();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+
+    // Tombol X pada popup Custom Zoom = sama dengan Cancel
+    customZoomModal.addEventListener('modal-cancel', () => {
+      zoomSelect.value = previousZoomValue;
+    });
+    
+    // =========================================================
+    // 9. ANIMASI MASUK SLIDE SHOW, SPINNER LOADING, DAN BUKA PDF DARI EXPLORER
+    // =========================================================
+
+    // --- 9a. Animasi masuk ala UWP (fade + geser dari kanan) ---
+    let fadeInNext = false;
+
+    function playEnterAnimation(el) {
+      el.classList.remove('mode-enter');
+      void el.offsetWidth;
+      el.classList.add('mode-enter');
+    }
+    [readerContainer, presenterContainer].forEach((el) => {
+      el.addEventListener('animationend', (e) => {
+        if (e.target === el && e.animationName === 'mode-enter') el.classList.remove('mode-enter');
+      });
+    });
+
+    // --- 9b. Spinner saat PDF sedang dibuka ---
+    const loadingOverlay = document.getElementById('loading-overlay');
+    let loadingSafetyTimer = null;
+
+    function showLoading() {
+      loadingOverlay.classList.add('show');
+      clearTimeout(loadingSafetyTimer);
+      loadingSafetyTimer = setTimeout(hideLoading, 60000);
+    }
+    function hideLoading() {
+      clearTimeout(loadingSafetyTimer);
+      loadingOverlay.classList.remove('show');
+    }
+    // Spinner hanya menutupi area kanan (bukan preview)
+    function alignLoadingOverlay() {
+      loadingOverlay.style.left = readerContainer.offsetLeft + 'px';
+    }
+    new ResizeObserver(alignLoadingOverlay).observe(readerContainer);
+    alignLoadingOverlay();
+
+    // --- 9c. Membuka PDF dari Explorer (double-click file / "Open with") ---
+    ipcRenderer.on('open-pdf', (e, filePath) => {
+      loadPdfSource(filePath, path.basename(filePath));
+    });
+    ipcRenderer.invoke('get-initial-pdf').then((filePath) => {
+      if (filePath) loadPdfSource(filePath, path.basename(filePath));
+    });
+  </script>
+</body>
+</html>
