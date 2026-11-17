@@ -1,118 +1,225 @@
+<div align="center">
+
+<img src="app-icon.png" alt="BV Reader logo" width="128" height="128">
+
 # BV Reader
 
-**PDF reader and dual-monitor slide show app for Windows, built with Electron and PDF.js.**
+**Open any PDF and present it like a pro.**
+A fast PDF reader with a built-in dual-monitor slide show, a Presenter View, and smooth fade transitions.
 
-BV Reader adalah aplikasi desktop untuk membuka file PDF dan menampilkannya sebagai **slide show**, mirip PowerPoint. Aplikasi ini mendukung dua monitor: satu monitor menampilkan slide layar penuh untuk jemaat atau penonton, monitor lainnya menampilkan **Presenter View** untuk pengendali. Tampilannya mengikuti gaya Windows 11 (WinUI 3) dan warna aksen Windows.
+[![Download](https://img.shields.io/badge/Download-Latest%20Release-2ea44f?style=for-the-badge&logo=github)](../../releases/latest)
 
-<!-- Tambahkan tangkapan layar di sini, misalnya:
-![Tampilan utama BV Reader](docs/screenshot.png)
--->
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?logo=windows&logoColor=white)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
+![Built with](https://img.shields.io/badge/built%20with-Electron%20%7C%20PDF.js-47848F?logo=electron&logoColor=white)
 
-## Fitur
+</div>
 
-**Membaca PDF**
-- Buka PDF lewat tombol **Open PDF**, **seret dan lepas** (drag & drop) ke jendela aplikasi, atau langsung dari Explorer (klik dua kali atau **Open with**).
-- Dua mode baca: **Continuous Scroll** dan **Single Page**. Di mode Single Page, halaman berganti dengan **scroll wheel** mouse.
-- Zoom: Fit to Screen, 25%, 50%, 75%, 100%, atau ukuran bebas (10% sampai 500%).
-- **Preview slide** (thumbnail) di sisi kiri. Klik untuk loncat ke halaman, dan bisa disembunyikan dengan tombol di toolbar.
-- Nomor halaman di toolbar mengikuti posisi scroll.
+---
 
-**Slide show**
-- **F5** memulai dari awal, **Shift+F5** memulai dari halaman yang sedang dipilih. Keduanya juga ada di menu tombol **Slide Show**.
-- **Dua monitor:** slide layar penuh di monitor penonton, **Presenter View** (slide saat ini, slide berikutnya, dan timer) di monitor pengendali.
-- **Satu monitor:** slide tampil layar penuh di monitor yang sama.
-- Pilihan monitor diatur lewat dialog **Select Monitor** (tombol **Save** menyimpan, **Cancel** membatalkan).
-- Transisi **Cut** (langsung) atau **Dissolve** (pudar silang yang halus, seperti Fade di PowerPoint).
-- Animasi masuk ke mode slide show bergaya UWP.
+## Why BV Reader?
 
-**Tampilan**
-- Gaya WinUI 3 dengan efek **Mica** (Windows 11) dan warna aksen yang mengikuti pengaturan Windows.
-- Tema **Light**, **Dark**, atau **Use system setting** (mengikuti Windows).
-- Scrollbar yang tersembunyi otomatis, spinner saat PDF dibuka, dan jendela yang langsung terbuka dalam keadaan maximized.
+Showing a PDF on a projector should be simple. You should not need a full presentation program, a conversion step, or a pile of settings just to put slides on the big screen.
 
-## Pintasan keyboard
+**BV Reader** opens your PDF and turns it into a slide show with one key press. On two monitors, your audience sees the full-screen slides while you keep a **Presenter View** with the current slide, the next slide, and a timer on your own screen.
 
-| Tombol | Fungsi |
+It is a great fit for **worship services, church events, seminars, classrooms, meetings, and any occasion** where slides arrive as a PDF and need to be shown on a second display.
+
+## Features
+
+- **Open PDFs your way**: use the **Open PDF** button, drag and drop a file into the window, or double-click a PDF in Windows Explorer.
+- **Two reading modes**: **Continuous Scroll** or **Single Page**. In Single Page mode, the mouse wheel flips pages.
+- **Flexible zoom**: Fit to Screen, 25%, 50%, 75%, 100%, or any custom size from 10% to 500%.
+- **Slide preview panel**: thumbnails on the left. Click one to jump to that page, or hide the panel with a single button. The page number in the toolbar follows your scrolling.
+- **One-key slide show**: **F5** starts from the beginning, **Shift + F5** starts from the page you are on. Both are also in the Slide Show menu.
+- **Dual-monitor presenting**: full-screen slides on the audience monitor and a **Presenter View** (current slide, next slide, timer, and navigation buttons) on yours.
+- **Single-monitor presenting**: the slide show simply fills your only screen.
+- **Smooth transitions**: choose **Dissolve**, a clean cross-fade with no dip to black, or a hard **Cut**.
+- **Display settings**: choose which monitor shows the Presenter View and which one shows the slide show.
+- **Light and Dark themes**: or follow your Windows setting automatically.
+- **Modern Windows 11 look**: WinUI 3 style controls, Mica backdrop, and your Windows accent color.
+- **Opens PDFs from Explorer**: the installer can register BV Reader as a PDF app, so a double-click or **Open with** just works.
+- **One window at a time**: opening another PDF while BV Reader is running loads it in the existing window.
+
+## How it works
+
+BV Reader uses the extended desktop of Windows. A typical presenting setup uses two displays:
+
+```
+  +----------------------+        +----------------------+
+  |      Monitor 1       |        |      Monitor 2       |
+  |    Presenter View    |        |   Full-screen slide  |
+  |  (you control here)  |        |  show (the audience  |
+  |  current slide       |        |  sees this)          |
+  |  next slide, timer   |        |                      |
+  +----------------------+        +----------------------+
+```
+
+When you start the slide show, the slides fill the **audience** monitor and the Presenter View takes over your **control** monitor. With only one display, the slide show fills that display instead.
+
+## Download and install
+
+Go to the [**Releases**](../../releases/latest) page and download the installer:
+
+| File | Description |
 |---|---|
-| `F5` | Mulai slide show dari awal |
-| `Shift` + `F5` | Mulai slide show dari halaman ini |
-| `Esc` | Keluar dari slide show, atau tutup dialog yang terbuka |
-| `→` `↓` `Page Down` `Spasi` | Halaman berikutnya (saat slide show atau mode Single Page) |
-| `←` `↑` `Page Up` | Halaman sebelumnya (saat slide show atau mode Single Page) |
-| Scroll wheel | Ganti halaman di mode Single Page |
+| `BV Reader Setup x.x.x.exe` | **Installer.** Installs for all users into Program Files, with optional PDF association and optional Desktop and Start Menu shortcuts. |
 
-## Persyaratan
+The installer walks you through these steps:
 
-- **Windows 10 atau 11** (64-bit). Efek Mica dan ikon Fluent paling optimal di **Windows 11**.
-- Untuk menjalankan dari kode sumber: [Node.js](https://nodejs.org) (versi LTS terbaru) dan [Git](https://git-scm.com).
+1. **License agreement**
+2. **Installation folder** (default: `C:\Program Files\BV Reader`)
+3. **PDF association**: choose whether PDF files should be listed with BV Reader
+4. **Shortcuts**: choose whether to create Desktop and Start Menu shortcuts
+5. **Install**
 
-## Instalasi (pengguna)
+Windows will ask for administrator permission at the start, because the app is installed for all users.
 
-1. Unduh **BV Reader Setup** versi terbaru dari halaman [Releases](https://github.com/jordanapit/BV-Reader/releases).
-2. Jalankan installer dan klik **Yes** saat Windows meminta izin Administrator.
-3. Ikuti langkah installer: setujui lisensi, pilih folder instalasi (bawaan `C:\Program Files\BV Reader`), lalu pilih apakah file PDF dikaitkan dengan BV Reader dan apakah shortcut Desktop dan Start Menu dibuat.
-4. Selesai. Aplikasi bisa dibuka dari Start Menu atau shortcut Desktop.
+> **Windows SmartScreen warning?** This app is not code-signed yet, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**. The full source code is in this repository for you to inspect or build yourself.
 
-Untuk menjadikan BV Reader pembuka PDF bawaan: klik kanan sebuah PDF, pilih **Open with**, lalu **Choose another app**, pilih **BV Reader**, dan centang **Always**. Atau atur di **Settings > Apps > Default apps**.
+### Make BV Reader your default PDF app
 
-## Menjalankan dari kode sumber
+Windows does not let an installer take over the default PDF app by itself. To set it yourself, right-click any PDF, choose **Open with**, then **Choose another app**, pick **BV Reader**, and tick **Always**. You can also do it in **Settings > Apps > Default apps**.
 
-```bash
-git clone https://github.com/jordanapit/BV-Reader.git
-cd BV-Reader
-npm install
-npm start
+## Quick start
+
+1. **Open BV Reader**, then open a PDF with **Open PDF**, by dragging a file into the window, or by double-clicking a PDF in Explorer.
+2. Scroll or use the page box to browse. Click a thumbnail on the left to jump to a page.
+3. If you have two monitors, click **Select Monitor** and choose the **Presenter View** monitor and the **Full-Screen Slide Show** monitor. Click **Save**.
+4. Pick a **Transition**: Dissolve or Cut.
+5. Press **F5** to present from the beginning, or **Shift + F5** to present from the current page.
+6. Press **Esc**, or click **End Slide Show**, to finish.
+
+### Controls
+
+| Control | What it does |
+|---|---|
+| **Menu button** (three lines) | Shows or hides the slide preview panel. |
+| **Open PDF** | Opens a PDF file. |
+| **Continuous Scroll / Single Page** | Switches the reading mode. |
+| **Page box and arrows** | Jump to a page, or go to the previous or next page. |
+| **Zoom** | Fit to Screen, preset zoom levels, or a custom size. |
+| **Transition** | Dissolve (cross-fade) or Cut (instant). |
+| **Select Monitor** | Chooses the Presenter View monitor and the slide show monitor. **Save** keeps your changes, **Cancel** discards them. |
+| **Slide Show (F5)** | Starts the slide show from the beginning. The small arrow next to it opens a menu with **From Beginning** and **From This Page**. |
+| **End Slide Show** | Leaves the slide show. |
+| **Theme** | Light, Dark, or Use system setting. |
+
+### Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `F5` | Start the slide show from the beginning |
+| `Shift` + `F5` | Start the slide show from the current page |
+| `Esc` | End the slide show, or close an open dialog |
+| `→` `↓` `Page Down` `Space` | Next page (during a slide show, or in Single Page mode) |
+| `←` `↑` `Page Up` | Previous page (during a slide show, or in Single Page mode) |
+| Mouse wheel | Flip pages in Single Page mode |
+
+### Your settings
+
+BV Reader remembers your **theme** and whether the **slide preview panel** is shown. They are saved automatically in your user profile (under `%APPDATA%`).
+
+## System requirements
+
+| | Minimum | Recommended |
+|---|---|---|
+| **Operating system** | Windows 10, 64-bit | Windows 11 |
+| **Displays** | 1 | 2 (Presenter View and audience) |
+| **Permissions** | Administrator rights to install into Program Files | |
+
+> The Mica backdrop and the Fluent icons look best on Windows 11. On Windows 10 the app works, but some visual effects are not available.
+
+## FAQ and troubleshooting
+
+**The slide show opens on the wrong monitor.**
+Click **Select Monitor**, choose the monitors again, and click **Save**. With only one display, the slide show uses that display.
+
+**A PDF still opens in another program when I double-click it.**
+Windows keeps your existing default PDF app. See [Make BV Reader your default PDF app](#make-bv-reader-your-default-pdf-app).
+
+**Windows shows "Windows protected your PC" when I run the installer.**
+The installer is not code-signed yet. Click **More info**, then **Run anyway**.
+
+**The background looks plain or dark.**
+The Mica effect needs Windows 11 with *Transparency effects* turned on in *Settings > Personalization > Colors*.
+
+**The slide change looks instant.**
+Make sure **Transition** is set to **Dissolve**. **Cut** changes slides immediately.
+
+**A PDF will not open.**
+Make sure the file is a valid PDF and is not damaged.
+
+## Build from source
+
+You need **Windows 10/11**, [Node.js](https://nodejs.org) (latest LTS), and [Git](https://git-scm.com).
+
+1. Clone this repository and open a terminal in its folder:
+
+   ```
+   git clone https://github.com/jordanapit/BV-Reader.git
+   cd BV-Reader
+   ```
+
+2. Install the dependencies:
+
+   ```
+   npm install
+   ```
+
+3. Run the app:
+
+   ```
+   npm start
+   ```
+
+To open a specific PDF right away:
+
+```
+npm start -- "C:\path\to\file.pdf"
 ```
 
-Untuk langsung membuka sebuah PDF:
+### Build the installer
 
-```bash
-npm start -- "C:\path\ke\file.pdf"
 ```
-
-Aplikasi hanya mengizinkan **satu jendela**. Kalau BV Reader sudah terbuka lalu Anda membuka PDF lain (dari Explorer atau perintah di atas), PDF itu dibuka di jendela yang sudah ada.
-
-## Membuat installer
-
-```bash
-npm install
 npm run dist
 ```
 
-Installer dibuat dengan [electron-builder](https://www.electron.build) (target NSIS) dan hasilnya ada di folder `dist`, misalnya `dist/BV Reader Setup 1.0.0.exe`. Installer ini:
+The installer is created by [electron-builder](https://www.electron.build) (NSIS target). You will find it in the `dist` folder, for example `dist/BV Reader Setup 1.0.0.exe`.
 
-- dipasang untuk semua pengguna ke **Program Files**,
-- menampilkan halaman: **Lisensi, Folder instalasi, Asosiasi PDF, Shortcut, lalu Install**,
-- mendaftarkan BV Reader sebagai aplikasi PDF (opsional, sesuai pilihan di installer),
-- membersihkan shortcut dan entri registry saat di-uninstall.
+> The `dist` and `node_modules` folders are not committed to Git (see `.gitignore`). Share installers through the **Releases** page on GitHub.
 
-> Folder `dist` dan `node_modules` tidak ikut diunggah ke Git (lihat `.gitignore`). Bagikan installer lewat **Releases** di GitHub.
+## Project structure
 
-## Struktur proyek
-
-| Berkas | Fungsi |
+| File | Purpose |
 |---|---|
-| `main.js` | Proses utama Electron: jendela, layar, tema, asosiasi file, satu jendela saja |
-| `index.html` | Antarmuka utama: toolbar, preview slide, pembaca PDF, Presenter View |
-| `presenter.html` | Jendela slide show layar penuh untuk penonton |
-| `installer.nsh` | Skrip tambahan installer NSIS (halaman opsi, registry, shortcut) |
-| `package.json` | Pengaturan proyek dan pengaturan pembuatan installer |
-| `app-icon.ico` / `app-icon.png` | Ikon aplikasi |
-| `LICENSE` / `LICENSE.txt` | Teks lisensi (GNU GPL v3) |
+| `main.js` | Electron main process: windows, displays, theme, file association, single window |
+| `index.html` | Main interface: toolbar, slide preview, PDF reader, Presenter View |
+| `presenter.html` | Full-screen slide show window for the audience |
+| `installer.nsh` | Extra NSIS installer script: option pages, registry entries, shortcuts |
+| `package.json` | Project settings and installer build settings |
+| `app-icon.ico` / `app-icon.png` | Application icon |
+| `LICENSE` / `LICENSE.txt` | License text (GNU GPL v3) |
 
-## Teknologi
+## Built with
 
-- [Electron](https://www.electronjs.org) untuk aplikasi desktop
-- [PDF.js](https://mozilla.github.io/pdf.js/) (Mozilla) untuk membaca dan menggambar PDF
-- [electron-builder](https://www.electron.build) untuk membuat installer
+- [Electron](https://www.electronjs.org/)
+- [PDF.js](https://mozilla.github.io/pdf.js/) by Mozilla
+- [electron-builder](https://www.electron.build/) and [NSIS](https://nsis.sourceforge.io/) for packaging
 
-Setiap komponen pihak ketiga tetap berada di bawah lisensinya masing-masing.
+## Contributing
 
-## Lisensi
+Bug reports, ideas, and pull requests are very welcome. Please open an [issue](../../issues) to start a conversation.
 
-BV Reader adalah perangkat lunak bebas dan sumber terbuka, dirilis di bawah **GNU General Public License versi 3** (GPL-3.0). Lihat berkas [LICENSE](LICENSE) untuk teks lengkapnya.
+## License
 
-## Pengembang
+BV Reader is free and open source software, released under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 **BellaVoz Entertainment**
-Developer: **JORD Andreas**
+Third-party components remain under their own licenses.
+
+## Credits
+
+Developed by **JORD Andreas**.
+Published by **BellaVoz Entertainment** ([bellavoz.id](https://www.bellavoz.id/)).
+
+Copyright (c) 2026 BellaVoz Entertainment.
